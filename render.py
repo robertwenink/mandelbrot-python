@@ -26,13 +26,14 @@ def get_trajectory_point(i):
     return x, y, traj_end_width, traj_end_height
 
 
-def get_max_its(current_width):
+def get_max_its(current_frame_nr):
     """
     Linearly increase the max iteration count based on the zoom. 
     Higher zoom levels require deeper iterations.
+    @param current_frame_nr, is a linear proxy for the zoom
     """
 
-    current_zoom = start_width / current_width
+    current_frame_frac = current_frame_nr / NR_FRAMES
 
     min_its = 100
 
@@ -43,7 +44,7 @@ def get_max_its(current_width):
     # current_max_its = min_its + (MAX_ITS-min_its)*(current_zoom-min_zoom)/(max_zoom-min_zoom)
     x_scale = 10
     y_scale = np.log(1+x_scale)
-    current_max_its = min_its + (MAX_ITS-min_its)*np.log(1 + x_scale * (current_zoom-min_zoom)/(max_zoom-min_zoom))/y_scale
+    current_max_its = min_its + (MAX_ITS-min_its)*np.log(1 + x_scale * current_frame_frac)/y_scale
 
     return np.floor(current_max_its)
 
@@ -80,6 +81,10 @@ class mandelbrotRender:
         X = np.zeros((X_RESOLUTIE, Y_RESOLUTIE))    
         self.img = self.ax.imshow(X.T, cmap=CMAP, origin='lower') 
 
+        # Access the underlying Tkinter window to position the window at the top-left corner (0, 0)
+        fig_manager = plt.get_current_fig_manager()
+        fig_manager.window.wm_geometry("+0+0")
+
         # als we liveplotting doen moeten we eerst de figure al tekenen!    
         if self.liveplotting:
             plt.draw()                                              
@@ -106,7 +111,9 @@ class mandelbrotRender:
             # Verder moet x en y hetzelfde verlopen om overeen te komen!
 
         # NOTE equal in width and height
-        self.r_dim = (end_height/start_height)**(1/(self.nr_frames)) 
+        # -1 because we apply it N-1 times for N frames
+        self.r_dim = (end_height/start_height)**(1/(self.nr_frames-1)) 
+        print(self.r_dim)
 
 
     def set_trajectory_change_at_frame_number_list(self):
@@ -157,13 +164,17 @@ class mandelbrotRender:
             # location ratio
             r_xy = self.r_dim**SMOOTHING_POWER # het ziet er iets soepeler uit als de locatie sneller convergeert dan de screen size
 
-            # A series of r^ni does not necessarily end up exactly at the zoom level of a new trajectory (very probably not)!
-            # So, we need to define a number f to compensate for this, to later correctly interpolate 
-            # (since there we will take the start x or y of the trajectory, not those of start of the complete simulation)
+            # TODO A series of r^ni does not necessarily end up exactly at the zoom level of a new trajectory (very probably not)!
+            # TODO So, we need to define a number f to compensate for this, to later correctly interpolate 
+            # TODO (since there we will take the start x or y of the trajectory, not those of start of the complete simulation)
+
+            # Below: with the smoothing_power applied (the effect of r_xy is stronger than globally needed), 
+            # we need something that compensates for that in the interpolation, 
+            # such that the endpoint in x and y correspond again compared to using the 'normal' r_dim at a trajectory switch.
             # we zoeken naar (1+f)*r^N = f , ofwel fac begint met 1+f eindigt met -f, en corrigeren hiervoor bij interpoleren
             # herschrijven geeft f = r^N/(1-r^N)
-            # NOTE TODO I still dont really get what I did here years ago
-            rN = r_xy**traj_nr_frames 
+            rN = r_xy**(traj_nr_frames)
+            
             f = rN/(1-rN)
             facxy = 1 + f
 
@@ -184,7 +195,8 @@ class mandelbrotRender:
 
         # interpolation function
         def intpol(start, end, fac, f):
-            return start * (fac-f) + end * ((1+f)-fac)
+            res = start * (fac-f) + end * ((1+f)-fac)
+            return res
 
         j = 0
         for i in range(self.nr_frames):            
@@ -195,7 +207,7 @@ class mandelbrotRender:
 
             x = intpol(traj_start_x, traj_end_x, facxy, f)
             y = intpol(traj_start_y, traj_end_y, facxy, f)
-            current_max_its = get_max_its(width)
+            current_max_its = get_max_its(i)
 
             yield i, x, y, width, height, current_max_its
 
@@ -218,25 +230,18 @@ class mandelbrotRender:
         current_max_its = args[5]
 
         # Create a 'corrected' x and y linspace with sizes of the resolution and values within the mandelbrot domain of interest.
-        x_cor = np.linspace(x-width/2,x+width/2,X_RESOLUTIE)
-        y_cor = np.linspace(y-height/2,y+height/2,Y_RESOLUTIE)
+        x_cor = np.linspace(x-width/2,x+width/2,X_RESOLUTIE, dtype="float64")
+        y_cor = np.linspace(y-height/2,y+height/2,Y_RESOLUTIE, dtype="float64")
 
         # main calculation
         t_0 = time.perf_counter()
 
         X = mandelbrot(x_cor, y_cor, current_max_its)
 
-        # NOTE only works with the twilight colormap which has black in the middle
-        mandelbrot_mask = (X == current_max_its)
-        X[mandelbrot_mask] = 127.5
-
-        X = np.remainder(X,256.0)
+        X = self.process_for_palette(X, current_max_its)
+        
         print(f"Main done in: {time.perf_counter() - t_0:.3f}")
         
-        # smoothed normalisation
-        # vmin, vmax = self.smooth_norm.update(X)
-        # smooth_norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-
         # Create a cyclic normalization object
         # You can adjust vmin and vmax to control the range of values that get cycled through the colormap
         vmin, vmax = 0, 255  # Example range, adjust as needed for your specific application
@@ -253,6 +258,18 @@ class mandelbrotRender:
 
         return [self.img]
     
+
+    def process_for_palette(self, X, current_max_its):
+        """
+        Take the modulus for cyclic coloring and set the pixels in the mandelbrot set to the darkest part.
+        """
+        # NOTE only works with the twilight colormap which has black in the middle
+        mandelbrot_mask = (X == current_max_its)
+        X[mandelbrot_mask] = 127.5
+
+        X = np.remainder(X,256.0)
+
+        return X
 
     def animate(self):
         """
@@ -288,20 +305,29 @@ class mandelbrotRender:
 
 
     def image(self):
-        traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(1)
-        traj_end_x, traj_end_y, traj_end_width, zoom_height = traj_end_x*1.001, traj_end_y*1.001, traj_end_width, zoom_height
-        x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTIE)
-        y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTIE)
+        traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(-1)
+        
+        x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTIE, dtype="float64")
+        y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTIE, dtype="float64")
         
         # main calculation
-        X = mandelbrot(x_cor,y_cor)
+        X = mandelbrot(x_cor,y_cor,MAX_ITS)
         
+        X = self.process_for_palette(X, MAX_ITS)
+
         self.img.set_data(X.T)
-        self.img.autoscale()
         
+        output_path = 'renders/mandelbrot.png'
+
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
         # dit behoudt niet het originele bestandsformaat, maar pakt m zoals weergegeven!!!
         # plt.savefig('mandelbrot.png', bbox_inches='tight', pad_inches = 0)
         # data = ((X.T-X.min())/X.max()*255.0)
-        plt.imsave('renders/mandelbrot.png', X.T, cmap=CMAP, origin='lower')
+        plt.draw()   
+        plt.pause(0.001)   
+
+        plt.imsave(output_path, X.T, cmap=CMAP, origin='lower')
 
             
