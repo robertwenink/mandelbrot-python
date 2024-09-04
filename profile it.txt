@@ -1,0 +1,15 @@
+## CProfiler
+Python cprofiler:
+python -m cProfile -o times.prof MandelBrot.py
+
+Vervolgens (pip install snakeviz eerst):
+snakeviz times.prof 
+
+# Scalene
+was ook nog een profiler die ik ooit gebruikt heb. 
+Dit werkte voor Martins code niet goed omdat dit sampled elke 0.01s en bij martin juist problemen zaten ook met function calls die extreem vaak werden herhaald. 
+Die kwamen dan niet goed naar voren.
+Scalene ondersteunt echter multithreading, multiprocessing, en onderscheid native vs python code. Doet bovendien ook memory! Deze moeten we hebben dus.
+
+nuttige opties:
+--reduced-profile

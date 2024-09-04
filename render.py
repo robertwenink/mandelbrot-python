@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
 
-from cpu_kernel import mandelbrot as mandelbrot
+from kernel import mandelbrot as mandelbrot, mandelbrot_gpu
 from settings import *
 
 
@@ -228,7 +228,7 @@ class mandelbrotRender:
         (x, y) = (args[1], args[2])
         (width, height) = (args[3], args[4])
         current_max_its = args[5]
-
+        
         # Create a 'corrected' x and y linspace with sizes of the resolution and values within the mandelbrot domain of interest.
         x_cor = np.linspace(x-width/2,x+width/2,X_RESOLUTIE, dtype="float64")
         y_cor = np.linspace(y-height/2,y+height/2,Y_RESOLUTIE, dtype="float64")
@@ -236,10 +236,11 @@ class mandelbrotRender:
         # main calculation
         t_0 = time.perf_counter()
 
-        X = mandelbrot(x_cor, y_cor, current_max_its)
+        if GPU:
+            X = mandelbrot_gpu(x_cor, y_cor, current_max_its)
+        else:
+            X = mandelbrot(x_cor, y_cor, current_max_its)
 
-        X = self.process_for_palette(X, current_max_its)
-        
         print(f"Main done in: {time.perf_counter() - t_0:.3f}")
         
         # Create a cyclic normalization object
@@ -258,18 +259,6 @@ class mandelbrotRender:
 
         return [self.img]
     
-
-    def process_for_palette(self, X, current_max_its):
-        """
-        Take the modulus for cyclic coloring and set the pixels in the mandelbrot set to the darkest part.
-        """
-        # NOTE only works with the twilight colormap which has black in the middle
-        mandelbrot_mask = (X == current_max_its)
-        X[mandelbrot_mask] = 127.5
-
-        X = np.remainder(X,256.0)
-
-        return X
 
     def animate(self):
         """
@@ -304,6 +293,13 @@ class mandelbrotRender:
         print("{:.2f}% complete".format(100))
 
 
+    def frames_only(self):
+        frame_helper = self.frame_helper()
+        for f in range(NR_FRAMES):
+            args = next(frame_helper)
+            img = self.frame_builder(args)
+
+
     def image(self):
         traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(-1)
         
@@ -313,8 +309,6 @@ class mandelbrotRender:
         # main calculation
         X = mandelbrot(x_cor,y_cor,MAX_ITS)
         
-        X = self.process_for_palette(X, MAX_ITS)
-
         self.img.set_data(X.T)
         
         output_path = 'renders/mandelbrot.png'

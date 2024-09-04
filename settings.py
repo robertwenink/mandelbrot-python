@@ -1,14 +1,17 @@
 ####### SETTINGS #########
 X_RESOLUTIE = 1920
 Y_RESOLUTIE = 1080
-NR_FRAMES = 400
+NR_FRAMES = 100
 MAX_ITS = 2000
 
 # needs to be cyclic
 CMAP = "twilight"
 
-ANIMATE = True
+GPU = True
+
+ANIMATE = False
 LIVEPLOTTING = True
+MAKE_IMAGE = False
 FILE_FORMAT = "MP4" # or GIF
 
 # om de locatieverplaatsing sneller te laten gaan dan de oppervlakte zoom, voor smoothness!, define minimaal 1.2
