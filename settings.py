@@ -1,6 +1,6 @@
 ####### SETTINGS #########
-X_RESOLUTIE = 1920
-Y_RESOLUTIE = 1080
+X_RESOLUTION = 1920
+Y_RESOLUTION = 1080
 NR_FRAMES = 100
 MAX_ITS = 2000
 
@@ -18,7 +18,7 @@ FILE_FORMAT = "MP4" # or GIF
 SMOOTHING_POWER = 1.25 
 
 start_height = 3
-start_width = 3 * (X_RESOLUTIE/Y_RESOLUTIE)
+start_width = 3 * (X_RESOLUTION/Y_RESOLUTION)
 
 ####### ADD TRAJECTORY POINTS #########
 # zelf uitzoeken!

@@ -5,7 +5,7 @@
 from numba import cuda
 import numpy as np
 
-from settings import X_RESOLUTIE, Y_RESOLUTIE
+from settings import X_RESOLUTION, Y_RESOLUTION
 
 
 # https://developer.nvidia.com/blog/numba-python-cuda-acceleration/
@@ -46,7 +46,7 @@ def mandel_kernel(min_x, max_x, min_y, max_y, image, iters):
 
     # TODO dit in histogramcoloring opnemen.
     #  gimage = np.zeros((1024, 1536), dtype = np.uint8)
-    X = np.zeros((X_RESOLUTIE,Y_RESOLUTIE),dtype="float64")
+    X = np.zeros((X_RESOLUTION,Y_RESOLUTION),dtype="float64")
     blockdim = (32, 8)
     griddim = (32,16)
 

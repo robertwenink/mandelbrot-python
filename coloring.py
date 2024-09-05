@@ -4,7 +4,7 @@
 
 import numpy as np
 
-from settings import X_RESOLUTIE, Y_RESOLUTIE
+from settings import X_RESOLUTION, Y_RESOLUTION
 
 
 def histogramColoring(iteration_counts):
@@ -26,7 +26,7 @@ def histogramColoring(iteration_counts):
     color_bins = np.cumsum(frequencies)/total
     color = np.take(color_bins,inverese_indices)
 
-    return np.reshape(color,(X_RESOLUTIE,Y_RESOLUTIE))
+    return np.reshape(color,(X_RESOLUTION,Y_RESOLUTION))
 
     ## this is more like the implementation on wikipedia for step 4
     # color = np.zeros_like(iteration_counts)

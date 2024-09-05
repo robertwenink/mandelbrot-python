@@ -66,7 +66,7 @@ class mandelbrotRender:
 
     def init_figure(self):
         # Create figure scladed for our given resolution
-        self.fig, self.ax = plt.subplots(figsize=(X_RESOLUTIE/100, Y_RESOLUTIE/100),frameon=False) 
+        self.fig, self.ax = plt.subplots(figsize=(X_RESOLUTION/100, Y_RESOLUTION/100),frameon=False) 
 
         # Stuff to make the image borderless             
         self.fig.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
@@ -78,7 +78,7 @@ class mandelbrotRender:
         self.ax.axis("off")                                 
 
         # Create empty image, using a colorscheme, plot from bottom to top
-        X = np.zeros((X_RESOLUTIE, Y_RESOLUTIE))    
+        X = np.zeros((X_RESOLUTION, Y_RESOLUTION))    
         self.img = self.ax.imshow(X.T, cmap=CMAP, origin='lower') 
 
         # Access the underlying Tkinter window to position the window at the top-left corner (0, 0)
@@ -230,8 +230,8 @@ class mandelbrotRender:
         current_max_its = args[5]
         
         # Create a 'corrected' x and y linspace with sizes of the resolution and values within the mandelbrot domain of interest.
-        x_cor = np.linspace(x-width/2,x+width/2,X_RESOLUTIE, dtype="float64")
-        y_cor = np.linspace(y-height/2,y+height/2,Y_RESOLUTIE, dtype="float64")
+        x_cor = np.linspace(x-width/2,x+width/2,X_RESOLUTION, dtype="float64")
+        y_cor = np.linspace(y-height/2,y+height/2,Y_RESOLUTION, dtype="float64")
 
         # main calculation
         t_0 = time.perf_counter()
@@ -303,8 +303,8 @@ class mandelbrotRender:
     def image(self):
         traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(-1)
         
-        x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTIE, dtype="float64")
-        y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTIE, dtype="float64")
+        x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTION, dtype="float64")
+        y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTION, dtype="float64")
         
         # main calculation
         X = mandelbrot(x_cor,y_cor,MAX_ITS)
