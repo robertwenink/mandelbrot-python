@@ -249,7 +249,7 @@ class mandelbrotRender:
         else:
             X = mandelbrot(x_cor, y_cor, current_max_its)
 
-        print(f"Main done in: {time.perf_counter() - t_0:.3f}")
+        print(f"Main done in: {time.perf_counter() - t_0:.3f}, for x={x}, y={y}")
         
         if self.render:
             self.img.set_data(X.T)
