@@ -4,7 +4,7 @@ from numba import njit, prange
 import pyopencl as cl
 ctx = cl.create_some_context(interactive=False, answers=["0"])
 
-from settings import MAX_ITS, X_RESOLUTION, Y_RESOLUTION
+from settings import X_RESOLUTION, Y_RESOLUTION
 
 
 @njit(parallel=True, fastmath=True)
@@ -33,19 +33,21 @@ def mandelbrot_simple(x_cor, y_cor, max_its):
     return X
 
 
-@njit(parallel=True, fastmath=True)
+@njit(parallel=True, fastmath=True, cache=True)
 def mandelbrot(x_cor, y_cor, max_its):
     """
     Escape time algorithm; optimised variant.
     See https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set
     Here x_corr are the real values, y_corr the imaginary in terms of the mandelbrot fractal
     """
+    x_resolution = x_cor.shape[0]
+    y_resolution = y_cor.shape[0]
 
-    X = np.zeros((X_RESOLUTION,Y_RESOLUTION), dtype="float64")
+    X = np.zeros((x_resolution,y_resolution), dtype="float64")
     bailout = 4
 
-    for i in prange(X_RESOLUTION):
-        for j in prange(Y_RESOLUTION):
+    for i in prange(x_resolution):
+        for j in prange(y_resolution):
             # z = complex(0, 0)               # complex answer
             # complex answer z = x +yj
             x = 0.0
@@ -54,16 +56,14 @@ def mandelbrot(x_cor, y_cor, max_its):
             # quadratised variants for the optimised version to limit multiplications
             x2 = 0.0
             y2 = 0.0
-            w = 0.0
 
             # number of iterations
             n = 0                           
             while (x2 + y2 <= bailout and n < max_its):
+                y = 2 * x * y + y_cor[j]
                 x = x2 - y2 + x_cor[i]
-                y = w - x2 - y2 + y_cor[j]
                 x2 = x * x
                 y2 = y * y
-                w = (x + y) * (x + y)
                 n += 1
 
             # smooth coloring by making n fractional within its possible bounds based on closeness of |z| to the bailout
@@ -146,15 +146,14 @@ def mandelbrot_gpu_v2(q, maxiter):
     {   
         int gid = get_global_id(0);
         output[gid] = 0;
-        double x = 0.0, y = 0.0, x2 = 0.0, y2 = 0.0, w = 0.0;
+        double x = 0.0, y = 0.0, x2 = 0.0, y2 = 0.0;
         int n = 0;
         while(x2 + y2 <= 4.0f && n < max_its){
+            y = 2.0 * x * y + q[gid].y;
             x = x2 - y2 + q[gid].x;
-            y = w - x2 - y2 + q[gid].y;
             x2 = x * x;
             y2 = y * y;
-            w = (x + y) * (x + y);
-            n += 1;
+            n++;
         }
 
         if (n < max_its) {

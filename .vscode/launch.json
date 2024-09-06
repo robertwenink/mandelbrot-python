@@ -12,10 +12,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: MandeBrot.py",
+            "name": "Python Debugger: mandelbrot_zoom.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "MandelBrot.py",
+            "program": "mandelbrot_zoom.py",
             "console": "integratedTerminal"
         },
     ]

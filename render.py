@@ -37,11 +37,9 @@ def get_max_its(current_frame_nr):
 
     min_its = 100
 
-    min_zoom = 1
-    max_zoom = TRAJECTORY[-1][-1]
-
     # simple linear interpolation
-    # current_max_its = min_its + (MAX_ITS-min_its)*(current_zoom-min_zoom)/(max_zoom-min_zoom)
+    # based on: current_max_its = min_its + (MAX_ITS-min_its)*(current_zoom-min_zoom)/(max_zoom-min_zoom)
+    # increase the x_scale variable to have a relatively higher rate of increase at the beginning and lower at the end of simulation.
     x_scale = 10
     y_scale = np.log(1+x_scale)
     current_max_its = min_its + (MAX_ITS-min_its)*np.log(1 + x_scale * current_frame_frac)/y_scale
@@ -55,11 +53,14 @@ def get_max_its(current_frame_nr):
 
 class mandelbrotRender:
 
-    def __init__(self, nr_frames, liveplotting = True):
+    def __init__(self, nr_frames, render = True, liveplotting = True):
         self.nr_frames = nr_frames
+        self.render = render
         self.liveplotting = liveplotting
 
-        self.init_figure()
+        if self.render:
+            self.init_figure()
+            
         self.set_r_dim()
         self.set_trajectory_change_at_frame_number_list()
 
@@ -85,8 +86,15 @@ class mandelbrotRender:
         fig_manager = plt.get_current_fig_manager()
         fig_manager.window.wm_geometry("+0+0")
 
+        # Create a cyclic normalization object
+        # You can adjust vmin and vmax to control the range of values that get cycled through the colormap
+        vmin, vmax = 0, 255  # Example range, adjust as needed for your specific application
+        cyclic_norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+        self.img.set_norm(cyclic_norm)
+
+
         # als we liveplotting doen moeten we eerst de figure al tekenen!    
-        if self.liveplotting:
+        if self.liveplotting or not ANIMATE:
             plt.draw()                                              
             plt.pause(0.001)   
 
@@ -139,7 +147,7 @@ class mandelbrotRender:
             if j == (len(TRAJECTORY)-1):
                 break   
 
-        self.trajectory_change_at_frame_number.append(self.nr_frames-1)
+        self.trajectory_change_at_frame_number.append(self.nr_frames)
        
 
     def next_trajectory_xy(self):
@@ -159,7 +167,7 @@ class mandelbrotRender:
             traj_end_x, traj_end_y, _, _  = get_trajectory_point(i+1)
 
             # trajectory_change_at_frame_number (list): frame number at which we switch to the next trajecory target x, y and zoom
-            traj_nr_frames = self.trajectory_change_at_frame_number[i+1] - self.trajectory_change_at_frame_number[i] 
+            traj_nr_frames = self.trajectory_change_at_frame_number[i+1] - self.trajectory_change_at_frame_number[i]
 
             # location ratio
             r_xy = self.r_dim**SMOOTHING_POWER # het ziet er iets soepeler uit als de locatie sneller convergeert dan de screen size
@@ -243,57 +251,57 @@ class mandelbrotRender:
 
         print(f"Main done in: {time.perf_counter() - t_0:.3f}")
         
-        # Create a cyclic normalization object
-        # You can adjust vmin and vmax to control the range of values that get cycled through the colormap
-        vmin, vmax = 0, 255  # Example range, adjust as needed for your specific application
-        cyclic_norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+        if self.render:
+            self.img.set_data(X.T)
 
-        self.img.set_norm(cyclic_norm)
-        # self.img.autoscale() # autoscale to fill the complete color range
+            # flush events to speed up rendering
+            if self.liveplotting:
+                self.fig.canvas.flush_events()
 
-        self.img.set_data(X.T)
+            return [self.img]
 
-        # flush events to speed up rendering
-        if self.liveplotting:
-            self.fig.canvas.flush_events()
-
-        return [self.img]
-    
 
     def animate(self):
         """
         Function that calls the matplotlib animation function, and saves the result to a gif.
         """
 
-        if FILE_FORMAT.lower() == "gif":        
-            output_path = 'renders/mandelbrot.gif'
-        else: 
-            output_path = 'renders/mandelbrot.mp4'
+        if self.render:
+            if FILE_FORMAT.lower() == "gif":        
+                output_path = 'renders/mandelbrot.gif'
+            else: 
+                output_path = 'renders/mandelbrot.mp4'
 
-        if os.path.exists(output_path):
-            os.remove(output_path)
+            if os.path.exists(output_path):
+                os.remove(output_path)
 
-        # TODO https://stackoverflow.com/questions/40126176/fast-live-plotting-in-matplotlib-pyplot
-        anim = animation.FuncAnimation(self.fig, 
-                                       lambda args : self.frame_builder(args), 
-                                       frames=self.frame_helper, 
-                                       interval=0, 
-                                       blit=True,
-                                       save_count = self.nr_frames,
-                                       repeat = False
-                                       )
+            # TODO https://stackoverflow.com/questions/40126176/fast-live-plotting-in-matplotlib-pyplot
+            anim = animation.FuncAnimation(self.fig, 
+                                        lambda args : self.frame_builder(args), 
+                                        frames=self.frame_helper, 
+                                        interval=0, 
+                                        blit=True,
+                                        save_count = self.nr_frames,
+                                        repeat = False
+                                        )
+            
+            if FILE_FORMAT.lower() == "gif":        
+                anim.save(output_path, writer='pillow')
+            else:
+                # TODO make fps related to the amount of zoom
+                anim.save(output_path, writer='ffmpeg', fps=30, dpi=80)
         
-        if FILE_FORMAT.lower() == "gif":        
-            anim.save(output_path, writer='pillow')
         else:
-            # TODO make fps related to the amount of zoom
-            anim.save(output_path, writer='ffmpeg', fps=30, dpi=80)
+            self.frames_only()
 
         # this print because 'frames' does not print the last after the yield
         print("{:.2f}% complete".format(100))
 
 
     def frames_only(self):
+        """
+        Function that runs all the frames, but calculations only, no saveing or rendering.
+        """
         frame_helper = self.frame_helper()
         for f in range(NR_FRAMES):
             args = next(frame_helper)
@@ -301,27 +309,30 @@ class mandelbrotRender:
 
 
     def image(self):
-        traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(-1)
+        traj_end_x, traj_end_y, traj_end_width, zoom_height = get_trajectory_point(0)
         
+        start = time.perf_counter()
+
         x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTION, dtype="float64")
         y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTION, dtype="float64")
         
         # main calculation
         X = mandelbrot(x_cor,y_cor,MAX_ITS)
+
+        print("Calculation time: {}".format(time.perf_counter() - start))
         
-        self.img.set_data(X.T)
-        
-        output_path = 'renders/mandelbrot.png'
+        if self.render:
+            self.img.set_data(X.T)
+            plt.draw()   
+            plt.pause(0.01)   
 
-        if os.path.exists(output_path):
-            os.remove(output_path)
 
-        # dit behoudt niet het originele bestandsformaat, maar pakt m zoals weergegeven!!!
-        # plt.savefig('mandelbrot.png', bbox_inches='tight', pad_inches = 0)
-        # data = ((X.T-X.min())/X.max()*255.0)
-        plt.draw()   
-        plt.pause(0.001)   
+            output_path = 'renders/mandelbrot.png'
 
-        plt.imsave(output_path, X.T, cmap=CMAP, origin='lower')
+            if os.path.exists(output_path):
+                os.remove(output_path)
+
+            plt.imsave(output_path, X.T, cmap=CMAP, origin='lower')
+
 
             

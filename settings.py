@@ -1,27 +1,43 @@
-####### SETTINGS #########
+#######################################
+############# Settings ################
+#######################################
+
 X_RESOLUTION = 1920
 Y_RESOLUTION = 1080
-NR_FRAMES = 100
+NR_FRAMES = 10
 MAX_ITS = 2000
 
 # needs to be cyclic
 CMAP = "twilight"
 
-GPU = True
+# CPU or GPU
+GPU = False
 
-ANIMATE = False
-LIVEPLOTTING = True
-MAKE_IMAGE = False
+ANIMATE = True # Make a zoom animation?
+RENDER = True # Render the images, or just do the calculations?
+
+# options only used if animate and render are true
+LIVEPLOTTING = True # We can animate and render, but not draw, saves time.
 FILE_FORMAT = "MP4" # or GIF
 
-# om de locatieverplaatsing sneller te laten gaan dan de oppervlakte zoom, voor smoothness!, define minimaal 1.2
+
+#######################################
+####### Trajectory definition #########
+#######################################
+# NOTE Define a trajectory of multiple points, 
+# e.g. to zoom with a centre focus on some structure 
+# and then continue zooming on something near
+
+# On a trajectory change, factor to shift 
+# the location quicker than the zoom for a smoother simulation.
+# Take a minimum of ~1.2
 SMOOTHING_POWER = 1.25 
 
+# Standard start sizes to capture the mandelbrot
 start_height = 3
 start_width = 3 * (X_RESOLUTION/Y_RESOLUTION)
 
-####### ADD TRAJECTORY POINTS #########
-# zelf uitzoeken!
+
 # http://www.jakebakermaths.org.uk/maths/mandelbrot/canvasmandelbrotv12bak7512.html
 
 # NOTE 4096**4 / 10 is about the deepest we can go with float64 precision
