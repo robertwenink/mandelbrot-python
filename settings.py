@@ -11,15 +11,15 @@ MAX_ITS = 2000
 CMAP = "twilight"
 
 # CPU or GPU
-GPU = False
+GPU = True
 
 ANIMATE = True # Make a zoom animation?
 RENDER = True # Render the images, or just do the calculations?
 
 # options only used if animate and render are true
-LIVEPLOTTING = True # We can animate and render, but not draw, saves time.
+LIVEPLOTTING = False # We can animate and render, but not draw, saves time.
 FILE_FORMAT = "MP4" # or GIF
-
+OUTPUT_FILENAME = "mandelbrot"
 
 #######################################
 ####### Trajectory definition #########

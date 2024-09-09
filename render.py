@@ -268,9 +268,9 @@ class mandelbrotRender:
 
         if self.render:
             if FILE_FORMAT.lower() == "gif":        
-                output_path = 'renders/mandelbrot.gif'
+                output_path = f'renders/{OUTPUT_FILENAME}.gif'
             else: 
-                output_path = 'renders/mandelbrot.mp4'
+                output_path = f'renders/{OUTPUT_FILENAME}.mp4'
 
             if os.path.exists(output_path):
                 os.remove(output_path)
@@ -327,7 +327,7 @@ class mandelbrotRender:
             plt.pause(0.01)   
 
 
-            output_path = 'renders/mandelbrot.png'
+            output_path = f'renders/{OUTPUT_FILENAME}.png'
 
             if os.path.exists(output_path):
                 os.remove(output_path)
