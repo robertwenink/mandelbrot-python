@@ -108,6 +108,7 @@ class mandelbrotRender:
         _, _, _, end_height = get_trajectory_point(-1)
 
         # Each next frame should have the same rate of change in the width/height / size of the screen to have a uniform zoom feeling
+
             # Explanation: Stel we verplaatsen x, y, width en height lineair via interpolation afhankelijk van factor fac.
             # height en width tezamen vormen het oppervlak.
             # om de oppervlak verandering linear te laten verlopen moet je dus fac**(1/2) gebruiken
@@ -169,25 +170,46 @@ class mandelbrotRender:
             # trajectory_change_at_frame_number (list): frame number at which we switch to the next trajecory target x, y and zoom
             traj_nr_frames = self.trajectory_change_at_frame_number[i+1] - self.trajectory_change_at_frame_number[i]
 
-            # location ratio
-            r_xy = self.r_dim**SMOOTHING_POWER # het ziet er iets soepeler uit als de locatie sneller convergeert dan de screen size
-
-            # TODO A series of r^ni does not necessarily end up exactly at the zoom level of a new trajectory (very probably not)!
-            # TODO So, we need to define a number f to compensate for this, to later correctly interpolate 
-            # TODO (since there we will take the start x or y of the trajectory, not those of start of the complete simulation)
+            # SMOOTHING_POWER: let the location converge faster than the screensize (which is calculated with just r_dim); this looks smoother.
+            # i.e. r_xy < r_dim so we converge faster to 0
+            r_xy = self.r_dim**SMOOTHING_POWER
 
             # Below: with the smoothing_power applied (the effect of r_xy is stronger than globally needed), 
             # we need something that compensates for that in the interpolation, 
             # such that the endpoint in x and y correspond again compared to using the 'normal' r_dim at a trajectory switch.
-            # we zoeken naar (1+f)*r^N = f , ofwel fac begint met 1+f eindigt met -f, en corrigeren hiervoor bij interpoleren
-            # herschrijven geeft f = r^N/(1-r^N)
+            # Normally, we interpolate between x0 and x1 *of a trajectory* using an inverse interpolation factor fac in [1,0].
+            # Remember that we defined traj_nr_frames using r_dim, so 1 and 1*r_dim^traj_nr_frames should exactly match this [1,0]
+            # since r_xy is based on r_dim, the same holds for r_xy (Note that even without the smoothing_power we would require a correction!).
+
+            # Lets represent the mismatch at the end of the (sub)series using 'f_err', this would mean we have fac_uncorrected in [1, f_err].
+            # where f_err = 1 * r_xy^N - 0 = r_xy^N. 
+            # At the interpolation, we will normalize f_xy to the [0,1] range and use: 
+            # f_corr = f_err - f_xy / (f_err - 1)
+
             rN = r_xy**(traj_nr_frames)
-            
-            f = rN/(1-rN)
-            facxy = 1 + f
+            f_err = rN/(1-rN)
 
-            yield traj_start_x, traj_start_y, traj_end_x, traj_end_y, r_xy, facxy, f
+            # reset the base interpolation factor for each new trajectory.
+            f_xy = 1
 
+            # NOTE A series of r^ni does not necessarily end up exactly at the zoom level of a new trajectory (very probably not)!
+            # This is however fine, zoom will be close enough, while we keep the zoom rate steady, which is more important
+
+
+            yield traj_start_x, traj_start_y, traj_end_x, traj_end_y, r_xy, f_xy, f_err
+
+    def corrected_interpolation(x0, x1, f_xy, f_err):
+        """
+        Interpolation function that takes correction factor f into account, 
+        correcting for the difference between self.r_dim and the smoothed self.r_dim**SMOOTHING_POWER
+
+        x0, x1: start and end values between which the interpolation takes place. 
+        f_xy: starts at 1, gets multiplied by r_xy after each iteration.
+        f_err: constant that linearly scaled the 
+        """
+        f_corr = (f_err - f_xy) / (f_err - 1)
+        res = x0 * f_corr + x1 * (1 - f_corr) 
+        return res
 
     def frame_helper(self):
         """
@@ -201,26 +223,21 @@ class mandelbrotRender:
         # get the generator for the xy location, width and height
         gen = self.next_trajectory_xy()
 
-        # interpolation function
-        def intpol(start, end, fac, f):
-            res = start * (fac-f) + end * ((1+f)-fac)
-            return res
-
         j = 0
         for i in range(self.nr_frames):            
             if i == self.trajectory_change_at_frame_number[j] and not i == self.trajectory_change_at_frame_number[-1]:
-                traj_start_x, traj_start_y, traj_end_x, traj_end_y, r_xy, facxy, f = next(gen)
+                traj_start_x, traj_start_y, traj_end_x, traj_end_y, r_xy, f_xy, f_er = next(gen)
                 j += 1
                 print("change of trajectory!")
 
-            x = intpol(traj_start_x, traj_end_x, facxy, f)
-            y = intpol(traj_start_y, traj_end_y, facxy, f)
+            x = self.corrected_interpolation(traj_start_x, traj_end_x, f_xy, f_er)
+            y = self.corrected_interpolation(traj_start_y, traj_end_y, f_xy, f_er)
             current_max_its = get_max_its(i)
 
             yield i, x, y, width, height, current_max_its
 
             # adjust parameters for next yield
-            facxy *= r_xy
+            f_xy *= r_xy
             width *= self.r_dim
             height *= self.r_dim
             
@@ -318,8 +335,16 @@ class mandelbrotRender:
         
         # main calculation
         X = mandelbrot(x_cor,y_cor,MAX_ITS)
+        print("Calculation time: {} s".format(time.perf_counter() - start))
 
-        print("Calculation time: {}".format(time.perf_counter() - start))
+        second = time.perf_counter()
+        
+        # main calculation, second time, to correct the timings for the numba initialisation
+        x_cor = np.linspace(traj_end_x-traj_end_width/2,traj_end_x+traj_end_width/2,X_RESOLUTION, dtype="float64")
+        y_cor = np.linspace(traj_end_y-zoom_height/2,traj_end_y+zoom_height/2,Y_RESOLUTION, dtype="float64")
+        X = mandelbrot(x_cor,y_cor,MAX_ITS)
+
+        print("Calculation time: {} s".format(time.perf_counter() - second))
         
         if self.render:
             self.img.set_data(X.T)
