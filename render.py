@@ -205,7 +205,8 @@ class mandelbrotRender:
 
         x0, x1: start and end values between which the interpolation takes place. 
         f_xy: starts at 1, gets multiplied by r_xy after each iteration.
-        f_err: constant that linearly scaled the 
+        f_err:  constant, equal to 1-r_xy^N, 
+                or the error wrt to interpolation factor 0 after a series of N iterations
         """
         f_corr = (f_err - f_xy) / (f_err - 1)
         res = x0 * f_corr + x1 * (1 - f_corr) 
