@@ -2,9 +2,9 @@
 ############# Settings ################
 #######################################
 class Settings:
-    x_resolution = int(3840/2)
-    y_resolution = int(2160/2)
-    nr_frames = 6
+    x_resolution = int(3840)
+    y_resolution = int(2160)
+    nr_frames = 600
     max_its = 2000
     min_its = 100
 
@@ -12,14 +12,14 @@ class Settings:
     colormap_name = "twilight"
 
     # CPU or GPU
-    gpu = True
+    gpu = False
 
     animate = True # Make a zoom animation?
     render = True # Render the images, or just do the calculations?
 
     # options only used if animate and render are true
-    liveplotting = True # We can animate and render, but not draw, saves time.
-    output_filename = "mandelbrot_test.mp4"
+    liveplotting = False # We can animate and render, but not draw, saves time.
+    output_filename = "mandelbrot_4k.mp4"
     fps = 30
 
     #######################################
