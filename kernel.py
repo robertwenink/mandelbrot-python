@@ -4,8 +4,6 @@ from numba import njit, prange
 import pyopencl as cl
 ctx = cl.create_some_context(interactive=False, answers=["0"])
 
-from settings import X_RESOLUTION, Y_RESOLUTION
-
 
 @njit(parallel=True, fastmath=True)
 def mandelbrot_simple(x_cor, y_cor, max_its):
@@ -13,11 +11,15 @@ def mandelbrot_simple(x_cor, y_cor, max_its):
     Escape time algorithm; simplest variant.
     Here x_corr are the real values, y_corr the imaginary in terms of the mandelbrot fractal
     """
-    ESCAPE_RADIUS = 4 #
-    X = np.zeros((X_RESOLUTION,Y_RESOLUTION),dtype="double64")
+    bailout = 4
 
-    for i in prange(X_RESOLUTION):
-        for j in prange(Y_RESOLUTION):
+    x_resolution = x_cor.shape[0]
+    y_resolution = y_cor.shape[0]
+
+    X = np.zeros((x_resolution,y_resolution), dtype="float64")
+
+    for i in prange(x_resolution):
+        for j in prange(y_resolution):
             c = complex(x_cor[i],y_cor[j])  # complex coordinates / set
             z = complex(0, 0)               # complex answer
             n = 0                           # number of iterations
@@ -27,7 +29,7 @@ def mandelbrot_simple(x_cor, y_cor, max_its):
                 z = z*z + c 
 
                 n = n + 1
-                if (abs(z) > ESCAPE_RADIUS):
+                if (abs(z) > bailout):
                     break
             X[i,j] = n              
     return X
@@ -44,7 +46,7 @@ def mandelbrot(x_cor, y_cor, max_its):
     y_resolution = y_cor.shape[0]
 
     X = np.zeros((x_resolution,y_resolution), dtype="float64")
-    bailout = 4
+    bailout = 4 # escape radius
 
     for i in prange(x_resolution):
         for j in prange(y_resolution):
@@ -187,7 +189,10 @@ def mandelbrot_gpu(x_cor, y_cor, max_its):
     # c = x_cor + y_cor[:,None]*1j
     # c = c.flatten('F')
     
+    x_resolution = x_cor.shape[0]
+    y_resolution = y_cor.shape[0]
+
     # v2 is slightly slower for gpu, maybe because of the extra variables.
     X = mandelbrot_gpu_v1(c, max_its)
-    X = X.reshape((X_RESOLUTION,Y_RESOLUTION))
+    X = X.reshape((x_resolution,y_resolution))
     return X
